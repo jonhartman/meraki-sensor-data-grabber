@@ -16,12 +16,13 @@ LOG_FILE = "./logfile"
 
 def grab_sensor_names():
     # Create mapping of serials to friendly names
-    translationTable = {}
+    translationTable = {"success": True}
 
     try:
         inventory = dashboard.organizations.getOrganizationInventoryDevices(410499, productTypes="sensor")
-    except Exception as error:
-        logging.error("UNABLE TO PULL INVENTORY:\t" + str(error))
+    except Exception as sensorNameError:
+        logging.error("UNABLE TO PULL INVENTORY:\t" + str(sensorNameError))
+        translationTable['success'] = False
     else:
         for inventoryItem in inventory:
             translationTable[inventoryItem['serial']] = inventoryItem['name']
@@ -171,13 +172,18 @@ while True:
     # Populate the S/N-to-name table
     sensorNames = grab_sensor_names()
 
-    # Grab the sensor readings
-    rawSensorData = dashboard.sensor.getOrganizationSensorReadingsHistory(410499, total_pages=-1, timespan=1800)
+    if sensorNames['success']:
 
-    # Turn the readings to usable data
-    processedData = process_sensor_data(rawSensorData)
+        # Grab the sensor readings
+        try:
+            rawSensorData = dashboard.sensor.getOrganizationSensorReadingsHistory(410499, total_pages=-1, timespan=1800)
+        except Exception as sensorDataError:
+            logging.error("UNABLE TO PULL SENSOR DATA:\t" + str(sensorDataError))
+        else:
+            # Turn the readings to usable data
+            processedData = process_sensor_data(rawSensorData)
 
-    # Write it out
-    write_data(processedData)
+            # Write it out
+            write_data(processedData)
 
     time.sleep(10)
